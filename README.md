@@ -14,7 +14,7 @@ Here are the main attributes of the tool:
 
 In general, high level goal of this project was to implement a single process that could monitor multiple slaves and graph the delay.  While pt-heartbeat allows for sub-second granularity, we still would've needed a custom wrapper to handle the other pieces and --skew is pretty much the only option in terms of syncronization.  
 
-Here is a summary of the project on mysqlperformanceblog: [percona-millipede – Sub-second replication monitor](http://www.mysqlperformanceblog.com/2014/03/25/percona-millip…cation-monitor)
+Here is a summary of the project on mysqlperformanceblog: [percona-millipede – Sub-second replication monitor](http://www.mysqlperformanceblog.com/2014/04/15/percona-millipede-sub-second-replication-monitor/)
 
 Caveats / Warnings
 ------------------
