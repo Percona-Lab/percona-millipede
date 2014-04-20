@@ -110,6 +110,16 @@ class DbThread(threading.Thread):
 		except Exception, e:
 			pass
 
+	def setupGraphite(self, graphiteConf):
+		""" Try to set up the Graphite connection (for monitoring) """
+
+		self.graphiteEnabled = graphiteConf['enabled']
+
+		try:
+			self.graphiteClient = self.graphiteClient(graphiteConf)
+		except Exception, e:
+			pass
+
 	def setupZmq(self, context):
 		""" Localize the main context and set up the base Poller """
 		self.context = context
@@ -166,6 +176,9 @@ class MonitorThread (DbThread):
 					if bool(self.statsEnabled):
 						self.statsClient.timing(self.serverName, elapsed)
 
+					if bool(self.graphiteEnabled):
+						self.graphiteClient.put(elapsed)
+
 				except MySQLdb.Error, me:
 					print "Caught mysql error: ", me
 					self.refreshConnection()
@@ -215,11 +228,33 @@ class UpdateThread (DbThread):
 		print "Exiting the update thread"
 		self.socket.close()
 
+
+class GraphiteClient:
+	""" Graphite client """
+
+	def __init__(self, config):
+		self.config = config
+
+	def put(self, value):
+		""" Send graphite metric to Graphite server """
+
+		try:
+			import time
+			import socket
+			sock = socket.socket()
+			sock.connect( (self.config['host'], int(self.config['port'])) )
+			sock.send("%s %d %d\n" % (self.config['prefix'], value, int(time.time())))
+			#print("%s %d %d\n" % (self.config['prefix'], value, int(time.time())))
+			sock.close()
+		except Exception, e:
+			pass
+
+
 class MainMonitor:
 	""" Main object that manages all of the update/select threads """
 
 	def __init__(self, config):
-		""" Set up the list of monitor and update threads, as well as statsd conf """
+		""" Set up the list of monitor and update threads, as well as statsd and/or Graphite conf """
 
 		self.monitorList = []
 		self.updateList = []
@@ -230,13 +265,18 @@ class MainMonitor:
 		self.context.setsockopt(zmq.LINGER, 0)
 
 		self.statsConf = {}
-
 		try:
-
 			for item in config.items("statsd"):
 				self.statsConf[item[0]] = item[1]
 		except Exception as e:
 			self.statsConf['enabled'] = 0
+
+		self.graphiteConf = {}
+		try:
+			for item in config.items("graphite"):
+				self.graphiteConf[item[0]] = item[1]
+		except Exception as e:
+			self.graphiteConf['enabled'] = 0
 
 	def killThreads(self):
 		""" Set the kill event to stop all the child threads """
@@ -279,6 +319,7 @@ class MainMonitor:
 			t.setupThread("%s-monitor" % host[0])
 			t.setDelay(self.determineOffset())
 			t.setupStatsd(self.statsConf)
+			t.setupGraphite(self.graphiteConf)
 
 		elif threadType == "update":
 
