@@ -296,9 +296,9 @@ class MainMonitor:
 		dbParams['pass'] = self.config.get("dbConn", "pwd")
 		dbParams['name'] = self.config.get("dbConn", "db")
 		if hostParts[2]:
-			dbParams['port'] = hostParts[2]
+			dbParams['port'] = int(hostParts[2])
 		elif self.config.get("dbConn", "port"):
-			dbParams['port'] = self.config.get("dbConn", "port")
+			dbParams['port'] = int(self.config.get("dbConn", "port"))
 		else:
 			dbParams['port'] = 3306
 		dbParams['numRetries'] = int(self.config.get("dbConn", "numRetries"))
