@@ -87,9 +87,10 @@ Here is a sample configuration (included):
 
 Finally, the host sections.  As you would assume, the monitorHosts are slaves and the updateHosts are masters.  Here are the parts to each line:
 
-> slave1 = slave1.localdomain:1
+> slave1 = slave1.localdomain:1:3307
 
 * slave1 = alias name (for graphing and output)
 * slave1.localdomain = host to monitor (can also be an IP)
 * 1 = the masterID to pair with for a slave, or the serverID to set for a master
+* 3307 - optional MySQL port to connect (default 3306)
 

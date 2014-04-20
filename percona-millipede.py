@@ -43,6 +43,10 @@ class DbThread(threading.Thread):
 		self.dbUser = dbParams['user']
 		self.dbPass = dbParams['pass']
 		self.dbName = dbParams['name']
+		if dbParams['port']:
+			self.dbPort = dbParams['port']
+		else:
+			self.dbPort = 3306
 
 		# DB error handling
 		self.maxRetries = dbParams['numRetries']
@@ -61,6 +65,7 @@ class DbThread(threading.Thread):
 
 			try:
 				self.db = MySQLdb.connect(	host = self.dbHost,
+											port = self.dbPort,
 											user = self.dbUser,
 											passwd = self.dbPass,
 											db = self.dbName)
@@ -291,6 +296,12 @@ class MainMonitor:
 		dbParams['user'] = self.config.get("dbConn", "user")
 		dbParams['pass'] = self.config.get("dbConn", "pwd")
 		dbParams['name'] = self.config.get("dbConn", "db")
+		if hostParts[2]:
+			dbParams['port'] = hostParts[2]
+		elif self.config.get("dbConn", "port"):
+			dbParams['port'] = self.config.get("dbConn", "port")
+		else:
+			dbParams['port'] = 3306
 		dbParams['numRetries'] = int(self.config.get("dbConn", "numRetries"))
 		dbParams['retrySleep'] = float(self.config.get("dbConn", "retrySleep"))
 
