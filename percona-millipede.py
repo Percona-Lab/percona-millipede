@@ -19,9 +19,7 @@ import threading
 import time
 import MySQLdb
 import math
-import statsd
 import zmq
-import sys
 
 
 class DbThread(threading.Thread):
@@ -104,6 +102,7 @@ class DbThread(threading.Thread):
 		self.statsEnabled = statsConf['enabled']
 
 		try:
+			import statsd
 			self.statsClient = statsd.StatsClient(
 				statsConf['host'],
 				int(statsConf['port']),
