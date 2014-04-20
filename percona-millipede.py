@@ -23,6 +23,7 @@ import statsd
 import zmq
 import sys
 
+
 class DbThread(threading.Thread):
 	""" Base DB thread that all others should extend """
 
@@ -36,7 +37,7 @@ class DbThread(threading.Thread):
 
 	def setupDbConnection(self, dbParams):
 		""" Set up the db paramters for connections """
-		
+
 		# DB connection params
 		self.dbHost = dbParams['host']
 		self.dbUser = dbParams['user']
@@ -51,11 +52,11 @@ class DbThread(threading.Thread):
 
 	def refreshConnection(self):
 		""" Connect to the database and keep the handle local and handle retry logic """
-		
+
 		print "[%s] Trying to connect to the db..." % self.name
 
 		numRetries = 0
-	
+
 		while numRetries < self.maxRetries:
 
 			try:
@@ -94,13 +95,13 @@ class DbThread(threading.Thread):
 
 	def setupStatsd(self, statsConf):
 		""" Try to set up the statsd connection (for monitoring) """
-		
+
 		self.statsEnabled = statsConf['enabled']
 
 		try:
 			self.statsClient = statsd.StatsClient(
-				statsConf['host'], 
-				int(statsConf['port']), 
+				statsConf['host'],
+				int(statsConf['port']),
 				statsConf['prefix'])
 		except Exception, e:
 			pass
@@ -140,7 +141,7 @@ class MonitorThread (DbThread):
 			except KeyboardInterrupt:
 				break
 			except Exception, e:
-			 	print e
+				print e
 
 			if self.updateSocket in socks:
 
@@ -196,7 +197,7 @@ class UpdateThread (DbThread):
 			try:
 				self.dbHandle.execute("""UPDATE heartbeat SET ts = %s WHERE server_id = %s""", (strTime, self.serverID))
 				self.socket.send_string("%s %s" % (self.serverID, strTime))
-			
+
 			except MySQLdb.Error, me:
 				print "Caught mysql error: ", me
 				self.refreshConnection()
@@ -204,7 +205,7 @@ class UpdateThread (DbThread):
 			except Exception, e:
 				print "Caught other error", e
 				exit()
-			
+
 			time.sleep(self.delay)
 
 		print "Exiting the update thread"
@@ -274,7 +275,7 @@ class MainMonitor:
 			t.setupThread("%s-monitor" % host[0])
 			t.setDelay(self.determineOffset())
 			t.setupStatsd(self.statsConf)
-		
+
 		elif threadType == "update":
 
 			t = UpdateThread()
@@ -309,7 +310,7 @@ class MainMonitor:
 
 	def runSentry(self):
 		""" Monitor all the child threads, try to restart failed threads or die if all are stopped """
-		
+
 		while True:
 
 			restartThreads = []
@@ -350,7 +351,7 @@ if __name__ == "__main__":
 
 	(options, args) = parser.parse_args()
 
-	if options.monitorType is None or options.monitorType not in ["monitor","update","all"]:
+	if options.monitorType is None or options.monitorType not in ["monitor", "update", "all"]:
 		print "Must specify [monitor|update|all] for the type"
 		exit()
 
@@ -363,7 +364,7 @@ if __name__ == "__main__":
 
 	for host in config.items("monitorHosts"):
 		monitorHosts.append(host)
-	
+
 	for host in config.items("updateHosts"):
 		updateHosts.append(host)
 
@@ -388,5 +389,5 @@ if __name__ == "__main__":
 		print "Clean up the monitor..."
 		mon.killThreads()
 
-	print "...All done" 
+	print "...All done"
 
