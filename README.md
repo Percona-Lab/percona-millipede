@@ -40,7 +40,7 @@ Currently, you need to manually set up the heartbeat table and insert the first 
 
 > use percona;  
 > CREATE TABLE heartbeat (ts varchar(26) NOT NULL, server_id int(10) unsigned NOT NULL, PRIMARY KEY (server_id));  
-> INSERT INTO heartbeat VALES ('blank-time', SERVER-ID);
+> INSERT INTO heartbeat VALUES ('blank-time', SERVER-ID);
 
 Note that **SERVER-ID** should be replaced by the server-id you plan to assign the master
 
