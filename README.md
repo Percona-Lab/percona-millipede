@@ -9,7 +9,7 @@ Description
 Here are the main attributes of the tool:
 
 * Uses zeroMQ PUB/SUB to syncronize the monitor threads to the update thread
-* Integrates with statsd for graphing
+* Integrates with statsd and/or graphite for graphing
 * Allows you to monitor multiple slaves from a single process
 
 In general, high level goal of this project was to implement a single process that could monitor multiple slaves and graph the delay.  While pt-heartbeat allows for sub-second granularity, we still would've needed a custom wrapper to handle the other pieces and --skew is pretty much the only option in terms of syncronization.  
@@ -60,6 +60,13 @@ Here is a sample configuration (included):
 > port = 8125  
 > prefix = synthetic_slave_lag.master  
 > enabled = 1
+>
+> [graphite]
+> 
+> host = graphite.localdomain  
+> port = 2003  
+> prefix = synthetic_slave_lag.master  
+> enabled = 1
 > 
 > [dbConn]
 > 
@@ -82,7 +89,9 @@ Here is a sample configuration (included):
 
 * The **core** section simply set up the delay between checks and updates.
 * The **statsd** section sets up the connection to an existing statsd instance
- * Note that if you don't want to use this feature, you should set enabled = 0 and comment out the statsd include (if you don't want to install the package)
+ * Note that if you don't want to use this feature, you should set enabled = 0
+* The **graphite** section sets up the connection to an existing Graphite's carbon instance
+ * Note that if you don't want to use this feature, you should set enabled = 0
 * The **dbconn** section is self-explanatory - simply set up the credentials and number of retries (for a failed connection)
 
 Finally, the host sections.  As you would assume, the monitorHosts are slaves and the updateHosts are masters.  Here are the parts to each line:
