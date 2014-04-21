@@ -19,9 +19,8 @@ import threading
 import time
 import MySQLdb
 import math
-import statsd
 import zmq
-import sys
+
 
 class DbThread(threading.Thread):
 	""" Base DB thread that all others should extend """
@@ -36,12 +35,16 @@ class DbThread(threading.Thread):
 
 	def setupDbConnection(self, dbParams):
 		""" Set up the db paramters for connections """
-		
+
 		# DB connection params
 		self.dbHost = dbParams['host']
 		self.dbUser = dbParams['user']
 		self.dbPass = dbParams['pass']
 		self.dbName = dbParams['name']
+		if dbParams['port']:
+			self.dbPort = dbParams['port']
+		else:
+			self.dbPort = 3306
 
 		# DB error handling
 		self.maxRetries = dbParams['numRetries']
@@ -51,15 +54,16 @@ class DbThread(threading.Thread):
 
 	def refreshConnection(self):
 		""" Connect to the database and keep the handle local and handle retry logic """
-		
+
 		print "[%s] Trying to connect to the db..." % self.name
 
 		numRetries = 0
-	
+
 		while numRetries < self.maxRetries:
 
 			try:
 				self.db = MySQLdb.connect(	host = self.dbHost,
+											port = self.dbPort,
 											user = self.dbUser,
 											passwd = self.dbPass,
 											db = self.dbName)
@@ -94,14 +98,25 @@ class DbThread(threading.Thread):
 
 	def setupStatsd(self, statsConf):
 		""" Try to set up the statsd connection (for monitoring) """
-		
+
 		self.statsEnabled = statsConf['enabled']
 
 		try:
+			import statsd
 			self.statsClient = statsd.StatsClient(
-				statsConf['host'], 
-				int(statsConf['port']), 
+				statsConf['host'],
+				int(statsConf['port']),
 				statsConf['prefix'])
+		except Exception, e:
+			pass
+
+	def setupGraphite(self, graphiteConf):
+		""" Try to set up the Graphite connection (for monitoring) """
+
+		self.graphiteEnabled = graphiteConf['enabled']
+
+		try:
+			self.graphiteClient = self.graphiteClient(graphiteConf)
 		except Exception, e:
 			pass
 
@@ -140,7 +155,7 @@ class MonitorThread (DbThread):
 			except KeyboardInterrupt:
 				break
 			except Exception, e:
-			 	print e
+				print e
 
 			if self.updateSocket in socks:
 
@@ -160,6 +175,9 @@ class MonitorThread (DbThread):
 
 					if bool(self.statsEnabled):
 						self.statsClient.timing(self.serverName, elapsed)
+
+					if bool(self.graphiteEnabled):
+						self.graphiteClient.put(elapsed)
 
 				except MySQLdb.Error, me:
 					print "Caught mysql error: ", me
@@ -196,7 +214,7 @@ class UpdateThread (DbThread):
 			try:
 				self.dbHandle.execute("""UPDATE heartbeat SET ts = %s WHERE server_id = %s""", (strTime, self.serverID))
 				self.socket.send_string("%s %s" % (self.serverID, strTime))
-			
+
 			except MySQLdb.Error, me:
 				print "Caught mysql error: ", me
 				self.refreshConnection()
@@ -204,17 +222,39 @@ class UpdateThread (DbThread):
 			except Exception, e:
 				print "Caught other error", e
 				exit()
-			
+
 			time.sleep(self.delay)
 
 		print "Exiting the update thread"
 		self.socket.close()
 
+
+class GraphiteClient:
+	""" Graphite client """
+
+	def __init__(self, config):
+		self.config = config
+
+	def put(self, value):
+		""" Send graphite metric to Graphite server """
+
+		try:
+			import time
+			import socket
+			sock = socket.socket()
+			sock.connect( (self.config['host'], int(self.config['port'])) )
+			sock.send("%s %d %d\n" % (self.config['prefix'], value, int(time.time())))
+			#print("%s %d %d\n" % (self.config['prefix'], value, int(time.time())))
+			sock.close()
+		except Exception, e:
+			pass
+
+
 class MainMonitor:
 	""" Main object that manages all of the update/select threads """
 
 	def __init__(self, config):
-		""" Set up the list of monitor and update threads, as well as statsd conf """
+		""" Set up the list of monitor and update threads, as well as statsd and/or Graphite conf """
 
 		self.monitorList = []
 		self.updateList = []
@@ -225,13 +265,18 @@ class MainMonitor:
 		self.context.setsockopt(zmq.LINGER, 0)
 
 		self.statsConf = {}
-
 		try:
-
 			for item in config.items("statsd"):
 				self.statsConf[item[0]] = item[1]
 		except Exception as e:
 			self.statsConf['enabled'] = 0
+
+		self.graphiteConf = {}
+		try:
+			for item in config.items("graphite"):
+				self.graphiteConf[item[0]] = item[1]
+		except Exception as e:
+			self.graphiteConf['enabled'] = 0
 
 	def killThreads(self):
 		""" Set the kill event to stop all the child threads """
@@ -274,7 +319,8 @@ class MainMonitor:
 			t.setupThread("%s-monitor" % host[0])
 			t.setDelay(self.determineOffset())
 			t.setupStatsd(self.statsConf)
-		
+			t.setupGraphite(self.graphiteConf)
+
 		elif threadType == "update":
 
 			t = UpdateThread()
@@ -290,6 +336,12 @@ class MainMonitor:
 		dbParams['user'] = self.config.get("dbConn", "user")
 		dbParams['pass'] = self.config.get("dbConn", "pwd")
 		dbParams['name'] = self.config.get("dbConn", "db")
+		if hostParts[2]:
+			dbParams['port'] = int(hostParts[2])
+		elif self.config.get("dbConn", "port"):
+			dbParams['port'] = int(self.config.get("dbConn", "port"))
+		else:
+			dbParams['port'] = 3306
 		dbParams['numRetries'] = int(self.config.get("dbConn", "numRetries"))
 		dbParams['retrySleep'] = float(self.config.get("dbConn", "retrySleep"))
 
@@ -309,7 +361,7 @@ class MainMonitor:
 
 	def runSentry(self):
 		""" Monitor all the child threads, try to restart failed threads or die if all are stopped """
-		
+
 		while True:
 
 			restartThreads = []
@@ -350,7 +402,7 @@ if __name__ == "__main__":
 
 	(options, args) = parser.parse_args()
 
-	if options.monitorType is None or options.monitorType not in ["monitor","update","all"]:
+	if options.monitorType is None or options.monitorType not in ["monitor", "update", "all"]:
 		print "Must specify [monitor|update|all] for the type"
 		exit()
 
@@ -363,7 +415,7 @@ if __name__ == "__main__":
 
 	for host in config.items("monitorHosts"):
 		monitorHosts.append(host)
-	
+
 	for host in config.items("updateHosts"):
 		updateHosts.append(host)
 
@@ -388,5 +440,5 @@ if __name__ == "__main__":
 		print "Clean up the monitor..."
 		mon.killThreads()
 
-	print "...All done" 
+	print "...All done"
 
