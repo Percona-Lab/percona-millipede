@@ -64,7 +64,7 @@ Here is a sample configuration (included):
 > [graphite]
 > 
 > host = graphite.localdomain  
-> port = 2003  
+> port = 2003
 > prefix = synthetic_slave_lag.master
 > suffix =
 > collectd_friendly = 0
