@@ -59,16 +59,16 @@ Here is a sample configuration (included):
 > host = statsd.localdomain  
 > port = 8125  
 > prefix = synthetic_slave_lag.master  
-> enabled = 1
+> enabled = 1  
 >
 > [graphite]
 > 
 > host = graphite.localdomain  
-> port = 2003
-> prefix = synthetic_slave_lag.master
-> collectd_friendly = 0
-> enabled = 1
-> suffix =
+> port = 2003  
+> prefix = synthetic_slave_lag.master  
+> collectd_friendly = 0  
+> enabled = 1  
+> suffix =  
 > 
 > [dbConn]
 > 
