@@ -249,7 +249,7 @@ class GraphiteClient:
 			import time
 			import socket
 			sock = socket.socket()
-			if self.strtobool(self.config.get('collectd_friendly')):
+			if GraphiteClient.strtobool(self.config.get('collectd_friendly')):
 				server_name = server_name.replace('.', '_')
 			metric_name = self.config.get('prefix') + server_name + self.config.get('suffix')
 			sock.connect( (self.config['host'], int(self.config['port'])) )
