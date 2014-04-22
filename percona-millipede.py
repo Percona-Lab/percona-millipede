@@ -177,7 +177,7 @@ class MonitorThread (DbThread):
 						self.statsClient.timing(self.serverName, elapsed)
 
 					if bool(self.graphiteEnabled):
-						self.graphiteClient.put(elapsed)
+						self.graphiteClient.put(self.serverName, elapsed)
 
 				except MySQLdb.Error, me:
 					print "Caught mysql error: ", me
@@ -235,15 +235,18 @@ class GraphiteClient:
 	def __init__(self, config):
 		self.config = config
 
-	def put(self, value):
+	def put(self, server_name, value):
 		""" Send graphite metric to Graphite server """
 
 		try:
 			import time
 			import socket
 			sock = socket.socket()
+			if self.config.get('collectd_friendly'):
+				server_name = server_name.replace('.', '_')
+			metric_name = self.config.get('prefix') + server_name + self.config.get('suffix')
 			sock.connect( (self.config['host'], int(self.config['port'])) )
-			sock.send("%s %d %d\n" % (self.config['prefix'], value, int(time.time())))
+			sock.send("%s %d %d\n" % (metric_name, value, int(time.time())))
 			#print("%s %d %d\n" % (self.config['prefix'], value, int(time.time())))
 			sock.close()
 		except Exception, e:
@@ -336,11 +339,14 @@ class MainMonitor:
 		dbParams['user'] = self.config.get("dbConn", "user")
 		dbParams['pass'] = self.config.get("dbConn", "pwd")
 		dbParams['name'] = self.config.get("dbConn", "db")
-		if hostParts[2]:
-			dbParams['port'] = int(hostParts[2])
-		elif self.config.get("dbConn", "port"):
-			dbParams['port'] = int(self.config.get("dbConn", "port"))
-		else:
+		try:
+			if hostParts[2]:
+				dbParams['port'] = int(hostParts[2])
+			elif self.config.get("dbConn", "port"):
+				dbParams['port'] = int(self.config.get("dbConn", "port"))
+			else:
+				dbParams['port'] = 3306
+		except IndexError:
 			dbParams['port'] = 3306
 		dbParams['numRetries'] = int(self.config.get("dbConn", "numRetries"))
 		dbParams['retrySleep'] = float(self.config.get("dbConn", "retrySleep"))

@@ -65,7 +65,9 @@ Here is a sample configuration (included):
 > 
 > host = graphite.localdomain  
 > port = 2003  
-> prefix = synthetic_slave_lag.master  
+> prefix = synthetic_slave_lag.master
+> suffix =
+> collectd_friendly = 0
 > enabled = 1
 > 
 > [dbConn]
@@ -91,6 +93,8 @@ Here is a sample configuration (included):
 * The **statsd** section sets up the connection to an existing statsd instance
  * Note that if you don't want to use this feature, you should set enabled = 0
 * The **graphite** section sets up the connection to an existing Graphite's carbon instance
+ * Metric name fill be constructed as prefix + server_name + suffix
+ * If collectd_friendly = 1 then dots in server_name will be replaced with _ (like collectd does when exports metrics to graphite)
  * Note that if you don't want to use this feature, you should set enabled = 0
 * The **dbconn** section is self-explanatory - simply set up the credentials and number of retries (for a failed connection)
 
