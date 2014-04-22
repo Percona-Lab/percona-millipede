@@ -95,18 +95,12 @@ class DbThread(threading.Thread):
 		""" Store the main loop delay time """
 		self.delay = float(delay)
 
-	@staticmethod
-	def _strtobool(val):
-		if isinstance(val, basestring) and bool(val):
-			return not val in ('False', '0', '0.0')
-		else:
-			return bool(val)
 
 	def setupStatsd(self, statsConf):
 		""" Try to set up the statsd connection (for monitoring) """
 
 		try:
-			self.statsEnabled = self._strtobool(statsConf['enabled'])
+			self.statsEnabled = GraphiteClient.strtobool(statsConf['enabled'])
 
 			import statsd
 			self.statsClient = statsd.StatsClient(
@@ -120,7 +114,7 @@ class DbThread(threading.Thread):
 		""" Try to set up the Graphite connection (for monitoring) """
 
 		try:
-			self.graphiteEnabled = self._strtobool(graphiteConf['enabled'])
+			self.graphiteEnabled = GraphiteClient.strtobool(graphiteConf['enabled'])
 
 			self.graphiteClient = GraphiteClient(graphiteConf)
 		except Exception, e:
@@ -238,6 +232,13 @@ class UpdateThread (DbThread):
 class GraphiteClient:
 	""" Graphite client """
 
+	@staticmethod
+	def strtobool(val):
+		if isinstance(val, basestring) and bool(val):
+			return not val in ('False', '0', '0.0')
+		else:
+			return bool(val)
+
 	def __init__(self, config):
 		self.config = config
 
@@ -248,7 +249,7 @@ class GraphiteClient:
 			import time
 			import socket
 			sock = socket.socket()
-			if self.config.get('collectd_friendly'):
+			if self.strtobool(self.config.get('collectd_friendly')):
 				server_name = server_name.replace('.', '_')
 			metric_name = self.config.get('prefix') + server_name + self.config.get('suffix')
 			sock.connect( (self.config['host'], int(self.config['port'])) )
