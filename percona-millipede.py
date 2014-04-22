@@ -336,11 +336,14 @@ class MainMonitor:
 		dbParams['user'] = self.config.get("dbConn", "user")
 		dbParams['pass'] = self.config.get("dbConn", "pwd")
 		dbParams['name'] = self.config.get("dbConn", "db")
-		if hostParts[2]:
-			dbParams['port'] = int(hostParts[2])
-		elif self.config.get("dbConn", "port"):
-			dbParams['port'] = int(self.config.get("dbConn", "port"))
-		else:
+		try:
+			if hostParts[2]:
+				dbParams['port'] = int(hostParts[2])
+			elif self.config.get("dbConn", "port"):
+				dbParams['port'] = int(self.config.get("dbConn", "port"))
+			else:
+				dbParams['port'] = 3306
+		except IndexError:
 			dbParams['port'] = 3306
 		dbParams['numRetries'] = int(self.config.get("dbConn", "numRetries"))
 		dbParams['retrySleep'] = float(self.config.get("dbConn", "retrySleep"))
