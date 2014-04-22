@@ -116,7 +116,7 @@ class DbThread(threading.Thread):
 		self.graphiteEnabled = graphiteConf['enabled']
 
 		try:
-			self.graphiteClient = self.graphiteClient(graphiteConf)
+			self.graphiteClient = GraphiteClient(graphiteConf)
 		except Exception, e:
 			pass
 
