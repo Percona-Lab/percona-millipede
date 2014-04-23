@@ -21,7 +21,6 @@ import MySQLdb
 import math
 import zmq
 
-
 class DbThread(threading.Thread):
 	""" Base DB thread that all others should extend """
 
@@ -96,29 +95,30 @@ class DbThread(threading.Thread):
 		""" Store the main loop delay time """
 		self.delay = float(delay)
 
+
 	def setupStatsd(self, statsConf):
 		""" Try to set up the statsd connection (for monitoring) """
 
-		self.statsEnabled = statsConf['enabled']
-
 		try:
+			self.statsEnabled = GraphiteClient.strtobool(statsConf['enabled'])
+
 			import statsd
 			self.statsClient = statsd.StatsClient(
 				statsConf['host'],
 				int(statsConf['port']),
 				statsConf['prefix'])
 		except Exception, e:
-			pass
+			self.statsEnabled = False
 
 	def setupGraphite(self, graphiteConf):
 		""" Try to set up the Graphite connection (for monitoring) """
 
-		self.graphiteEnabled = graphiteConf['enabled']
-
 		try:
-			self.graphiteClient = self.graphiteClient(graphiteConf)
+			self.graphiteEnabled = GraphiteClient.strtobool(graphiteConf['enabled'])
+
+			self.graphiteClient = GraphiteClient(graphiteConf)
 		except Exception, e:
-			pass
+			self.graphiteEnabled = False
 
 	def setupZmq(self, context):
 		""" Localize the main context and set up the base Poller """
@@ -173,10 +173,10 @@ class MonitorThread (DbThread):
 						print "[%s] Delay (in ms): %d" % (self.name, elapsed)
 					updateTracker = 0
 
-					if bool(self.statsEnabled):
+					if self.statsEnabled:
 						self.statsClient.timing(self.serverName, elapsed)
 
-					if bool(self.graphiteEnabled):
+					if self.graphiteEnabled:
 						self.graphiteClient.put(self.serverName, elapsed)
 
 				except MySQLdb.Error, me:
@@ -232,6 +232,13 @@ class UpdateThread (DbThread):
 class GraphiteClient:
 	""" Graphite client """
 
+	@staticmethod
+	def strtobool(val):
+		if isinstance(val, basestring) and bool(val):
+			return not val in ('False', '0', '0.0')
+		else:
+			return bool(val)
+
 	def __init__(self, config):
 		self.config = config
 
@@ -242,7 +249,7 @@ class GraphiteClient:
 			import time
 			import socket
 			sock = socket.socket()
-			if self.config.get('collectd_friendly'):
+			if GraphiteClient.strtobool(self.config.get('collectd_friendly')):
 				server_name = server_name.replace('.', '_')
 			metric_name = self.config.get('prefix') + server_name + self.config.get('suffix')
 			sock.connect( (self.config['host'], int(self.config['port'])) )
